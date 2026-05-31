@@ -91,24 +91,23 @@ end
 loadAccess()
 
 -- Remote whitelist: fetch from GitHub on every execute
-task.spawn(function()
-	pcall(function()
-		local remoteUrl = "https://raw.githubusercontent.com/Xurcol/spm/refs/heads/main/whitelist.json"
-		local httpReq = request or http_request or (syn and syn.request) or (http and http.request) or fluxus_request
-		if httpReq then
-			local resp = httpReq({Url = remoteUrl, Method = "GET"})
-			if resp and resp.Body and resp.Body ~= "404: Not Found" then
-				local remoteData = HttpService:JSONDecode(resp.Body)
-				if remoteData.whitelist then
-					for _, id in ipairs(remoteData.whitelist) do WHITELISTED_IDS[id] = true end
-				end
-				if remoteData.blacklist then
-					for _, id in ipairs(remoteData.blacklist) do BLACKLISTED_IDS[id] = true end
-				end
-				if remoteData.mode then SCRIPT_ACCESS_MODE = remoteData.mode end
+pcall(function()
+	local remoteUrl = "https://raw.githubusercontent.com/Xurcol/spm/refs/heads/main/whitelist.json"
+	local httpReq = request or http_request or (syn and syn.request) or (http and http.request) or fluxus_request
+	if not httpReq then return end
+	local ok, resp = pcall(httpReq, {Url = remoteUrl, Method = "GET"})
+	if ok and resp and resp.Body and resp.Body ~= "404: Not Found" then
+		local success, remoteData = pcall(HttpService.JSONDecode, HttpService, resp.Body)
+		if success and remoteData then
+			if remoteData.whitelist then
+				for _, id in ipairs(remoteData.whitelist) do WHITELISTED_IDS[id] = true end
 			end
+			if remoteData.blacklist then
+				for _, id in ipairs(remoteData.blacklist) do BLACKLISTED_IDS[id] = true end
+			end
+			if remoteData.mode then SCRIPT_ACCESS_MODE = remoteData.mode end
 		end
-	end)
+	end
 end)
 
 for oid, _ in pairs(OWNER_USER_IDS) do WHITELISTED_IDS[oid] = true end
