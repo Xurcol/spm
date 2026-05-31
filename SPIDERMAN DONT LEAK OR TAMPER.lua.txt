@@ -99,8 +99,8 @@ pcall(function()
 		local success, remoteData = pcall(HttpService.JSONDecode, HttpService, resp.Body)
 		if success and remoteData then
 			-- Remote overrides everything: clear local lists first
-			WHITELISTED_IDS = {}
-			BLACKLISTED_IDS = {}
+			for k in pairs(WHITELISTED_IDS) do WHITELISTED_IDS[k] = nil end
+			for k in pairs(BLACKLISTED_IDS) do BLACKLISTED_IDS[k] = nil end
 			if remoteData.whitelist then
 				for _, id in ipairs(remoteData.whitelist) do WHITELISTED_IDS[id] = true; REMOTE_WHITELIST_IDS[id] = true end
 			end
@@ -108,14 +108,6 @@ pcall(function()
 				for _, id in ipairs(remoteData.blacklist) do BLACKLISTED_IDS[id] = true end
 			end
 			if remoteData.mode then SCRIPT_ACCESS_MODE = remoteData.mode end
-			-- Clear denied attempts for remotely whitelisted users
-			pcall(function()
-				if isfile and isfile(deniedAttemptsFile) and readfile and writefile then
-					local attempts = HttpService:JSONDecode(readfile(deniedAttemptsFile))
-					for _, id in ipairs(remoteData.whitelist or {}) do attempts[tostring(id)] = nil end
-					writefile(deniedAttemptsFile, HttpService:JSONEncode(attempts))
-				end
-			end)
 			-- Save remote data locally
 			saveAccess()
 		end
@@ -133,9 +125,9 @@ pcall(function()
 	end
 end)
 
--- Clear any old denied attempts and local blacklist data on startup
+-- Clear any old denied attempts on startup
 pcall(function()
-	if isfile and isfile(deniedAttemptsFile) and delfile then delfile(deniedAttemptsFile) end
+	if isfile and isfile("SpideySaveData/denied.json") and delfile then delfile("SpideySaveData/denied.json") end
 end)
 
 local function checkAccess()
