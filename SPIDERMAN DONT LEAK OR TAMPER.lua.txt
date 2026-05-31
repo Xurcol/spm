@@ -90,7 +90,8 @@ end
 
 loadAccess()
 
--- Remote whitelist: fetch from GitHub on every execute
+-- Remote whitelist: fetch from GitHub on every execute (overrides local)
+REMOTE_WHITELIST_IDS = {}
 pcall(function()
 	local remoteUrl = "https://raw.githubusercontent.com/Xurcol/spm/refs/heads/main/whitelist.json"
 	local httpReq = request or http_request or (syn and syn.request) or (http and http.request) or fluxus_request
@@ -99,13 +100,26 @@ pcall(function()
 	if ok and resp and resp.Body and resp.Body ~= "404: Not Found" then
 		local success, remoteData = pcall(HttpService.JSONDecode, HttpService, resp.Body)
 		if success and remoteData then
+			-- Remote overrides everything: clear local lists first
+			WHITELISTED_IDS = {}
+			BLACKLISTED_IDS = {}
 			if remoteData.whitelist then
-				for _, id in ipairs(remoteData.whitelist) do WHITELISTED_IDS[id] = true end
+				for _, id in ipairs(remoteData.whitelist) do WHITELISTED_IDS[id] = true; REMOTE_WHITELIST_IDS[id] = true end
 			end
 			if remoteData.blacklist then
 				for _, id in ipairs(remoteData.blacklist) do BLACKLISTED_IDS[id] = true end
 			end
 			if remoteData.mode then SCRIPT_ACCESS_MODE = remoteData.mode end
+			-- Clear denied attempts for remotely whitelisted users
+			pcall(function()
+				if isfile and isfile(deniedAttemptsFile) and readfile and writefile then
+					local attempts = HttpService:JSONDecode(readfile(deniedAttemptsFile))
+					for _, id in ipairs(remoteData.whitelist or {}) do attempts[tostring(id)] = nil end
+					writefile(deniedAttemptsFile, HttpService:JSONEncode(attempts))
+				end
+			end)
+			-- Save remote data locally
+			saveAccess()
 		end
 	end
 end)
@@ -121,8 +135,9 @@ pcall(function()
 	end
 end)
 
--- Auto-blacklist: track denied attempts per user
+-- Auto-blacklist: track denied attempts per user (skip remotely whitelisted)
 local function trackDeniedAttempt(uid)
+	if REMOTE_WHITELIST_IDS[uid] then return end
 	pcall(function()
 		local attempts = {}
 		if isfile and isfile(deniedAttemptsFile) and readfile then
