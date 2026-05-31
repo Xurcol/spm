@@ -55,7 +55,6 @@ local runId = math.random()
 ADMIN_USER_ID = 6133377022
 OWNER_USER_IDS = {[6133377022] = true, [3300646] = true}
 ALLOWED_PLACE_IDS = {[9825515356] = true}
-MAX_DENIED_ATTEMPTS = 3
 
 -- Access Control
 SCRIPT_ACCESS_MODE = "whitelist"
@@ -63,7 +62,6 @@ WHITELISTED_IDS = {[6133377022] = true, [3300646] = true}
 BLACKLISTED_IDS = {}
 
 local accessSaveFile = "SpideySaveData/access.json"
-local deniedAttemptsFile = "SpideySaveData/denied.json"
 
 local function saveAccess()
 	pcall(function()
@@ -135,27 +133,10 @@ pcall(function()
 	end
 end)
 
--- Auto-blacklist: track denied attempts per user (skip remotely whitelisted)
-local function trackDeniedAttempt(uid)
-	if REMOTE_WHITELIST_IDS[uid] then return end
-	pcall(function()
-		local attempts = {}
-		if isfile and isfile(deniedAttemptsFile) and readfile then
-			attempts = HttpService:JSONDecode(readfile(deniedAttemptsFile))
-		end
-		local key = tostring(uid)
-		attempts[key] = (attempts[key] or 0) + 1
-		if makefolder and not isfolder("SpideySaveData") then makefolder("SpideySaveData") end
-		if writefile then
-			writefile(deniedAttemptsFile, HttpService:JSONEncode(attempts))
-		end
-		if attempts[key] >= MAX_DENIED_ATTEMPTS then
-			BLACKLISTED_IDS[uid] = true
-			WHITELISTED_IDS[uid] = nil
-			saveAccess()
-		end
-	end)
-end
+-- Clear any old denied attempts and local blacklist data on startup
+pcall(function()
+	if isfile and isfile(deniedAttemptsFile) and delfile then delfile(deniedAttemptsFile) end
+end)
 
 local function checkAccess()
 	local uid = player.UserId
@@ -169,13 +150,7 @@ end
 
 SCRIPT_ACCESS_GRANTED = checkAccess()
 
-if not SCRIPT_ACCESS_GRANTED then
-	trackDeniedAttempt(player.UserId)
-	-- Check if they just got auto-blacklisted
-	if BLACKLISTED_IDS[player.UserId] then
-		AUTO_BLACKLISTED = true
-	end
-end
+AUTO_BLACKLISTED = false
 
 -- Discord webhook notification on execute
 task.spawn(function()
