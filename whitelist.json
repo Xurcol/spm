@@ -1,1 +1,5 @@
-
+{
+  "whitelist": [6133377022, 3300646],
+  "blacklist": [],
+  "mode": "whitelist"
+}
