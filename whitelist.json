@@ -1,7 +1,8 @@
 {
   "whitelist": [
     6133377022,
-    3300646
+    3300646,
+    58729763
   ],
   "blacklist": [],
   "mode": "whitelist"
